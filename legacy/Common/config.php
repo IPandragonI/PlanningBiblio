@@ -10,6 +10,7 @@ Get DB settings and secret key from .env.local and provide legacy code with them
 
 require_once(__DIR__.'/../../vendor/autoload.php');
 
+use App\Tenant\TenantContext;
 use Symfony\Component\Dotenv\Dotenv;
 
 // Security : Allow direct access to ajax files : add $version = 'ajax';
@@ -50,13 +51,31 @@ $config=Array();
 
 $database_url = $_ENV['DATABASE_URL'];
 
-$pattern = '/.[^\/]*\/\/(.[^:]*):(.[^@]*)@(.[^:]*):(\d*)\/(.*)/';
+global $kernel;
+if (isset($kernel) && $kernel->getContainer()->has('App\Tenant\TenantContext')) {
+    /** @var TenantContext $tenantContext */
+    $tenantContext = $kernel->getContainer()->get('App\Tenant\TenantContext');
+    $tenantParams = $tenantContext->getCurrentTenantDatabaseParams();
 
-$config['dbuser'] = preg_replace($pattern, '\1', $database_url);
-$config['dbpass'] = preg_replace($pattern, '\2', $database_url);
-$config['dbhost'] = preg_replace($pattern, '\3', $database_url);
-$config['dbport'] = preg_replace($pattern, '\4', $database_url);
-$config['dbname'] = preg_replace($pattern, '\5', $database_url);
+    if ($tenantParams) {
+        $config['dbuser'] = $tenantParams['user'];
+        $config['dbpass'] = $tenantParams['password'];
+        $config['dbname'] = $tenantParams['dbname'];
+
+        $pattern = '/.[^\/]*\/\/(.[^:]*):(.[^@]*)@(.[^:]*):(\d*)\/(.*)/';
+        $config['dbhost'] = preg_replace($pattern, '\\3', $database_url);
+        $config['dbport'] = preg_replace($pattern, '\\4', $database_url);
+    }
+}
+
+if (!isset($config['dbname'])) {
+    $pattern = '/.[^\/]*\/\/(.[^:]*):(.[^@]*)@(.[^:]*):(\d*)\/(.*)/';
+    $config['dbuser'] = preg_replace($pattern, '\\1', $database_url);
+    $config['dbpass'] = preg_replace($pattern, '\\2', $database_url);
+    $config['dbhost'] = preg_replace($pattern, '\\3', $database_url);
+    $config['dbport'] = preg_replace($pattern, '\\4', $database_url);
+    $config['dbname'] = preg_replace($pattern, '\\5', $database_url);
+}
 
 $config['dbprefix'] = $_ENV['DATABASE_PREFIX'];
 

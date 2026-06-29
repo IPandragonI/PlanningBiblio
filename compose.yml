@@ -1,0 +1,76 @@
+name: planningbiblio_${PROJECT_NAME}
+
+services:
+  frontend:
+    build: .
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      ADMIN_FIRSTNAME: ${ADMIN_FIRSTNAME}
+      ADMIN_LASTNAME: ${ADMIN_LASTNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      # Configuration Keycloak (OIDC), lue par Symfony via .env
+      OIDC_SERVER_URL: ${OIDC_SERVER_URL}
+      OIDC_REALM: ${OIDC_REALM}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - decalog_planno
+
+  db:
+    image: mariadb:10.3.39
+    command: --sql-mode=""
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$DB_ROOT_PASSWORD\"" ]
+      interval: 5s
+      retries: 10
+      timeout: 5s
+      start_period: 10s
+    networks:
+      - decalog_planno
+
+  pma:
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - "8082:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - decalog_planno
+
+  mailer:
+    image: mailhog/mailhog
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - decalog_planno
+
+volumes:
+  db_data:
+
+networks:
+  decalog_planno:
+    external: true
+    name: ${PROJECT_NAME}_decalog_sigb

@@ -24,6 +24,19 @@ services:
         class: App\Planno\Notifier
         public: true
 
+    App\Tenant\TenantContext:
+        public: true
+
+    App\Tenant\DynamicConnectionWrapper:
+        calls:
+            - [ setTenantContext, [ '@App\Tenant\TenantContext' ] ]
+
+    App\EventListener\TenantListener:
+        arguments:
+            $tenantContext: '@App\Tenant\TenantContext'
+        tags:
+            - { name: kernel.event_listener, event: kernel.request, priority: 150 }
+
     # controllers are imported separately to make sure services can be injected
     # as action arguments even if you don't extend any base controller class
     App\Controller\:

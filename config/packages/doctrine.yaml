@@ -1,5 +1,6 @@
 doctrine:
     dbal:
+        wrapper_class: 'App\Tenant\DynamicConnectionWrapper'
         url: '%env(resolve:DATABASE_URL)%'
 
         # IMPORTANT: You MUST configure your server version,
