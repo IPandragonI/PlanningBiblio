@@ -1,0 +1,9 @@
+name: planno_ci
+
+services:
+  app:
+    image: registry.srvgitlab.decalog.net/app/planno/planno:latest
+    env_file:
+      - .env
+    volumes:
+      - .:/var/www/html

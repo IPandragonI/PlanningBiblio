@@ -1,0 +1,86 @@
+stages:
+  - build
+  - validate
+  - deploy
+
+########################################################################################################################
+docker build:
+  stage: build
+
+  image: docker:git
+
+  services:
+    - docker:dind
+
+  variables:
+    BRANCH: "${CI_COMMIT_REF_NAME}"
+
+  before_script:
+    - docker info
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+
+  script:
+    - cd "${CI_PROJECT_DIR}"
+    - docker build -t "${CI_REGISTRY_IMAGE}"/planno:latest .
+    - docker push "${CI_REGISTRY_IMAGE}"/planno:latest
+
+  tags:
+    - runner-lxc
+
+  rules:
+    - if: '($CI_COMMIT_REF_NAME == "prod" || $CI_COMMIT_REF_NAME == "qa" || $CI_COMMIT_REF_NAME == "develop")'
+      changes:
+        - Dockerfile
+    - when: never
+      allow_failure: true
+
+ci:
+  stage: validate
+  image: docker:latest
+  tags:
+    - runner-lxc
+  services:
+    - docker:dind
+  before_script:
+    - apk add --no-cache make
+    - docker compose version
+    - cp docker-compose_ci.yml docker-compose.yml
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+  script:
+    - make up
+    - make ci
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "qa" || $CI_COMMIT_BRANCH == "prod"
+      when: manual
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
+
+########################################################################################################################
+deploy devdt:
+  stage: deploy
+
+  image: registry.srvgitlab.decalog.net/exploitation/ansible/alpine-ansible/alpine-ansible:latest
+
+  variables:
+    ANSIBLE_FORCE_COLOR: 'true'
+
+  before_script:
+    - apk add rsync
+    - echo 'recuperation projet ansible'
+    - echo "$SSH_KEY_FILE" > ${CI_PROJECT_DIR}/.sshkey
+    - eval $(ssh-agent -s)
+    - chmod 400 ${CI_PROJECT_DIR}/.sshkey
+    - ssh-add ${CI_PROJECT_DIR}/.sshkey
+    - git clone -b test https://gitlab-ci-token:${CI_JOB_TOKEN}@srvgitlab.decalog.net/exploitation/ansible/deploy.git .deploy/main/
+
+  script:
+    - echo $keystore_passwd > ${CI_PROJECT_DIR}/.keystore_passwd
+    - ansible-playbook -i ${CI_PROJECT_DIR}/.deploy/inventory/inventory.yml -l srvinfdocker01 --vault-password-file ${CI_PROJECT_DIR}/.keystore_passwd ${CI_PROJECT_DIR}/.deploy/main/deploy.yml
+  tags:
+    - runner-sigb
+
+  rules:
+    - when: manual
+      allow_failure: true

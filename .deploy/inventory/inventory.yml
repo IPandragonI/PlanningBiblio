@@ -1,0 +1,16 @@
+---
+all:
+  children:
+   infra:
+      hosts:
+        srvinfdocker01:
+          ansible_host: 192.168.84.251
+          env_name: dev
+          planno_default_uri: 'https://sigbdevdt.decalog.net/planning'
+
+
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+    ansible_remote_tmp: "~/.ansible/tmp"
+    ansible_common_remote_group: "users"

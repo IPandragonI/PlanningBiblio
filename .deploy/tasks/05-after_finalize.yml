@@ -1,0 +1,80 @@
+- name: login to registry
+  community.general.docker_login:
+    registry_url: "{{lookup('env','CI_REGISTRY') | default(lookup('env','REGISTRY_URL'),true) | default(REGISTRY_URL,true)}}"
+    username: "{{lookup('env','CI_REGISTRY_USER') | default(lookup('env','REGISTRY_USERNAME'),true) | default(REGISTRY_USERNAME,true)}}"
+    password: "{{lookup('env','CI_REGISTRY_PASSWORD') | default(lookup('env','REGISTRY_PASSWORD'),true) | default(REGISTRY_PASSWORD,true)}}"
+    docker_host: "unix:///run/user/3000/docker.sock"
+    state: present
+  become: yes
+  become_method: sudo
+  become_user: "{{ docker_username }}"
+  environment:
+    DOCKER_HOST: "unix:///run/user/3000/docker.sock"
+
+- name: "Create routing.yml with asset path"
+  template:
+    src: ../template/routing.yaml.j2
+    dest: "{{ deploy_helper.new_release_path }}/config/packages/dev/routing.yaml"
+
+- name: "Create .env with good values"
+  template:
+    src: ../template/.env.j2
+    dest: "{{ deploy_helper.new_release_path }}/.env"
+
+- name: "Create docker-compose.yml with good values"
+  template:
+    src: ../template/docker-compose.yml.j2
+    dest: "{{ deploy_helper.new_release_path }}/docker-compose.yml"
+
+- name: 'Run container in {{ deploy_helper.new_release_path }}'
+  shell:
+    cmd: "docker compose pull && docker compose down && docker compose up -d"
+    chdir: '{{ deploy_helper.new_release_path }}'
+  become: yes
+  become_method: sudo
+  become_user: "{{ docker_username }}"
+  environment:
+    DOCKER_HOST: "unix:///run/user/{{ docker_uid }}/docker.sock"
+
+- name: 'Check if allready installed'
+  stat:
+    path: '{{ deploy_to }}/{{ installed_flag }}'
+  register: installed
+
+- name: 'First Install App / database'
+  shell:
+    cmd: 'docker compose exec app bash /var/www/html/install_docker_dev.sh '
+    chdir: '{{ deploy_helper.new_release_path }}'
+  become: yes
+  become_method: sudo
+  become_user: "{{ docker_username }}"
+  environment:
+    DOCKER_HOST: "unix:///run/user/{{ docker_uid }}/docker.sock"
+  when: not installed.stat.exists
+
+- name: 'Install Only dependencies '
+  shell:
+    cmd: 'docker compose exec app bash /var/www/html/install_dependencies.sh'
+    chdir: '{{ deploy_helper.new_release_path }}'
+  become: yes
+  become_method: sudo
+  become_user: "{{ docker_username }}"
+  environment:
+    DOCKER_HOST: "unix:///run/user/{{ docker_uid }}/docker.sock"
+  when: installed.stat.exists  
+
+- name: 'Create a installed_flag file'
+  file:
+    path: "{{ deploy_to }}/{{ installed_flag }}"
+    state: touch
+  become: yes
+  become_method: sudo
+  when: not installed.stat.exists
+
+- name: Log out of registry
+  community.general.docker_login:
+    state: absent
+    docker_host: "unix:///run/user/3000/docker.sock"
+  become: yes
+  become_method: sudo
+  become_user: "{{ docker_username }}"

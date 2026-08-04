@@ -1,0 +1,25 @@
+dockerrootless: true
+docker_username: dockerrunner
+docker_usergroup: docker
+docker_uid: 3000
+
+installed_flag: "planno-installed.flag"
+
+## define files or folders to be deleted
+to_delete:
+  - .gitlab-ci.yml
+  - .gitignore
+  - .editorconfig
+  - .dockerignore
+  - web/.git
+  - .keystore_passwd
+  - README.md
+  - Changelog.md
+  - doc
+  - docker-compose_ci.yml
+  - Dockerfile
+  - do_minor_release.sh
+  - LICENSE
+  - Makefile
+  - README.md
+  - tests

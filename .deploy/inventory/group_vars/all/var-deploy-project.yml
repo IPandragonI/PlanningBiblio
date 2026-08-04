@@ -1,0 +1,25 @@
+build_dir: "{{ lookup('env', 'CI_PROJECT_DIR') | default('.') }}"
+ci_environment: "{{ lookup('env', 'CI_COMMIT_REF_SLUG') }}"
+ci_environment_name: "{{ lookup('env', 'CI_ENVIRONMENT_NAME') }}"
+ci_project_name: "{{ lookup('env', 'CI_PROJECT_PATH_SLUG') }}"
+
+root_folder: "/opt/docker-compose"
+## define the deployment path if not default (/home/www/{{ ci_project_name }})
+deploy_to: "{{ root_folder }}/{{ ci_project_name }}"
+compose_name: "{{ ci_project_name }}_{{ci_environment}}"
+
+has_fpm: no
+has_apache: no
+
+has_sudo: yes
+set_owner: no
+install_rsync: yes
+
+
+## list all files and folders to be excluded from rsync, relative to current/.
+to_exclude:
+  - .git/
+  - .gitlab-ci.yml
+  - .deploy/
+  - .idea/
+  - .sshkey

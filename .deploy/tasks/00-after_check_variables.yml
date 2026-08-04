@@ -1,0 +1,7 @@
+- name: Create root folder
+  file:
+    path: '{{ root_folder }}'
+    state: directory
+  when: root_folder is defined
+  become: yes
+  become_method: sudo
